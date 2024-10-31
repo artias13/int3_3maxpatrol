@@ -158,9 +158,10 @@ def saveSystemInfo(update: Update, context):
         # Start transaction
         cursor.execute("BEGIN;")
         
-        # Process results and insert them in batches
+        # Process results and insert them in one row
+        values = []
         for result in results:
-            values = [
+            values.extend([
                 result.get('ip_addresses', ''),
                 result.get('os', ''),
                 result.get('version', ''),
@@ -169,14 +170,16 @@ def saveSystemInfo(update: Update, context):
                 result.get('disk_space', ''),
                 result.get('memory_usage', ''),
                 datetime.now()
-            ]
-            cursor.execute(insert_query, values)
+            ])
+        
+        # Execute insert query with all values
+        cursor.execute(insert_query, values)
         
         # Commit transaction
         cursor.execute("COMMIT;")
         
         logger.info(f"{len(results)} записи успешно сохранены в базе данных")
-        update.message.reply_text(f"{len(results)} записи успешно сохранены в базе данных")
+        update.message.reply_text(f"{len(results)} записи успешно сохранены в базу данных")
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении системной информации: {error}")
@@ -192,6 +195,7 @@ def saveSystemInfo(update: Update, context):
             logger.info("Подключение закрыто")
 
     return ConversationHandler.END
+
 
 
 def declineSaving(update: Update, context):
