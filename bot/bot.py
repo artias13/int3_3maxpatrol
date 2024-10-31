@@ -172,8 +172,13 @@ def saveSystemInfo(update: Update, context):
             """
             insert_queries.append(query)
 
-        # Чейним и выполняем одним вызовом
-        cursor.executemany(insert_queries)
+        # Чейним и выполняем всеми запросами
+        for query in insert_queries:
+            try:
+                cursor.execute(query)
+            except Exception as e:
+                logger.error(f"Ошибка при выполнении запроса: {query}. Ошибка: {str(e)}")
+                continue
         
         connection.commit()
         logger.info(f"{len(results)} записи успешно сохранены в базе данных")
