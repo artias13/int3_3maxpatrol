@@ -160,18 +160,17 @@ def saveSystemInfo(update: Update, context):
         
         # Process results and insert them in batches
         for result in results:
-            for command, data in result.items():
-                values = [
-                    data.get('ip_addresses', ''),
-                    data.get('os', ''),
-                    data.get('version', ''),
-                    data.get('architecture', ''),
-                    data.get('uptime', ''),
-                    data.get('disk_space', ''),
-                    data.get('memory_usage', ''),
-                    datetime.now()
-                ]
-                cursor.execute(insert_query, values)
+            values = [
+                result.get('ip_addresses', ''),
+                result.get('os', ''),
+                result.get('version', ''),
+                result.get('architecture', ''),
+                result.get('uptime', ''),
+                result.get('disk_space', ''),
+                result.get('memory_usage', ''),
+                datetime.now()
+            ]
+            cursor.execute(insert_query, values)
         
         # Commit transaction
         cursor.execute("COMMIT;")
