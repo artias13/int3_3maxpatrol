@@ -29,6 +29,7 @@ EOF\n\
 cat <<EOF > /etc/postgresql/pg_hba.conf \n\
 local all ${POSTGRES_USER} peer \n\
 host all all 0.0.0.0/0 password \n\
+host replication ${DB_REPL_USER} ${DB_REPL_HOST} trust \n\
 EOF\n\
 docker-entrypoint.sh $@"]
 
