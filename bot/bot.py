@@ -119,7 +119,7 @@ def checkRemote(update: Update, context):
         update.message.reply_text("Неверный формат строки. \nСледуйте формату: user:password@ip:port")
         return ConversationHandler.END
 
-def save_system_info(update: Update, context):
+def saveSystemInfo(update: Update, context):
     logger.info(f"Пользователь {update.message.from_user.username} выбрал сохранить данные о системе")
     
     try:
