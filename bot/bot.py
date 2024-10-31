@@ -205,7 +205,8 @@ def enterIpAddress(update: Update, context):
 def getServerByIp(update: Update, context):
     """Get server information by IP address"""
     logger.info(f"Пользователь {update.message.from_user.username} запросил информацию о сервере по IP")
-    
+    connection = None
+    cursor = None
     try:
         # Extract IP address from the message
         ip_address = update.message.text.split('@')[2].split(':')[0]
