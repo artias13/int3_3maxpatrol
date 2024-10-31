@@ -51,7 +51,7 @@ def helpCommand(update: Update, context):
         "/start - начать диалог\n"
         "/help - показать эту справку\n"
         "/check_remote - проверить удаленный сервер\n"
-        "/get_server_info - информация о системе по ip\n"
+        "/get_server - информация о системе по ip\n"
     )
 
 def parseConnectionString(connection_string: str) -> Tuple[str, str, str, int]:
