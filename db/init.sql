@@ -1,6 +1,6 @@
 CREATE DATABASE ${DB_DATABASE};
 
-\c db_bot;
+\c vm_scanner_db;
 
 CREATE TABLE scan_results (
     id SERIAL PRIMARY KEY,

@@ -2,6 +2,17 @@ import json
 from ssh_client import SSHClient
 from db_client import DBClient
 import os
+from dotenv import load_dotenv
+
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+VM_IP=os.getenv("VM_IP")
+VM_USERNAME=os.getenv("VM_USERNAME")
+VM_PASSWORD=os.getenv("VM_PASSWORD")
+VM_PORT=os.getenv("VM_PORT")
 
 def detect_os(output):
     if "Debian GNU/Linux" in output:
@@ -41,14 +52,12 @@ def get_vm_info(ip, username, password, port):
 
 def main():
     # Загрузка конфигурации
-    with open('config.json') as f:
-        config = json.load(f)
-
     db_client = DBClient(
-        host=config['db_host'],
-        database=config['db_name'],
-        user=config['db_user'],
-        password=config['db_password']
+        host=DB_HOST,
+        port=DB_PORT,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
     )
     
     if not db_client.connect():
@@ -58,10 +67,10 @@ def main():
     try:
         # Сканирование VM
         vm_info = get_vm_info(
-            config['vm_ip'],
-            config['vm_username'],
-            config['vm_password'],
-            config['vm_port']
+            ip=VM_IP,
+            username=VM_USERNAME,
+            password=VM_PASSWORD,
+            port=VM_PORT
         )
 
         if vm_info:

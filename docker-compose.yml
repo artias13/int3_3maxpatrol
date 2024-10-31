@@ -1,0 +1,38 @@
+version: "3"
+services:
+  vm_patrol:
+    image: vm_patrol_image
+    build:
+      context: ./vm_patrol
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - VM_IP=${VM_IP}
+      - VM_USERNAME=${VM_USERNAME}
+      - VM_PASSWORD=${VM_PASSWORD}
+      - VM_PORT=${VM_PORT}
+    volumes:
+      - pg_logs:/var/log/
+    container_name: "${VM_PATROL}"
+  db:
+    image: db_image
+    build: ./db
+    volumes:
+      - pg_logs:/var/log/
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - DB_PORT={DB_PORT}
+      - DB_DATABASE=${DB_NAME}
+    container_name: "${DB_HOST}"
+
+volumes:
+  pg_data:
+  pg_logs:
+networks:
+  default:
+    name: my_network
+    external: true

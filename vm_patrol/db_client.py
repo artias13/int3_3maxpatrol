@@ -2,9 +2,10 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 class DBClient:
-    def __init__(self, host, database, user, password):
+    def __init__(self, host, database, port, user, password):
         self.host = host
         self.database = database
+        self.port = port
         self.user = user
         self.password = password
         self.conn = None
@@ -12,10 +13,11 @@ class DBClient:
     def connect(self):
         try:
             self.conn = psycopg2.connect(
-                dbname=self.database,
                 user=self.user,
                 password=self.password,
-                host=self.host
+                host=self.host,
+                port=self.port,
+                database=self.database,
             )
             return True
         except Exception as e:
