@@ -164,11 +164,11 @@ def saveSystemInfo(update: Update, context):
             values.extend([
                 result.get('ip_addresses', ''),
                 result.get('os', ''),
-                result.get('version', ''),
                 result.get('architecture', ''),
                 result.get('uptime', ''),
                 result.get('disk_space', ''),
                 result.get('memory_usage', ''),
+                result.get('mpstat_data', ''),
                 datetime.now()
             ])
         
