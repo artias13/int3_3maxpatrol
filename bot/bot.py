@@ -150,7 +150,7 @@ def saveSystemInfo(update: Update, context):
             uptime,
             disk_space,
             memory_usage,
-            mpstat_data,
+            mpstat_data
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         
@@ -197,6 +197,68 @@ def saveSystemInfo(update: Update, context):
 
     return ConversationHandler.END
 
+
+def enterIpAddress(update: Update, context):
+    update.message.reply_text("Введите IP-адрес искомого сервера")
+    return "getServerByIp"
+
+def getServerByIp(update: Update, context):
+    """Get server information by IP address"""
+    logger.info(f"Пользователь {update.message.from_user.username} запросил информацию о сервере по IP")
+    
+    try:
+        # Extract IP address from the message
+        ip_address = update.message.text.split('@')[2].split(':')[0]
+        
+        # Prepare the query
+        query = """
+        SELECT * FROM system_info
+        WHERE ip = %s;
+        """
+        
+        # Execute the query
+        connection = psycopg2.connect(
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT,
+            database=DB_DATABASE,
+        )
+        cursor = connection.cursor()
+        cursor.execute(query, (ip_address,))
+        
+        # Fetch all matching records
+        servers = cursor.fetchall()
+        
+        if servers:
+            # Send the results back to the user
+            for server in servers:
+                update.message.reply_text(f"Сервер: {server[1]} ({server[0]})")
+                update.message.reply_text(f"Адрес: {server[0]}")
+                update.message.reply_text(f"Операционная система: {server[2]}")
+                update.message.reply_text(f"Архитектура: {server[3]}")
+                update.message.reply_text(f"Время работы: {server[4]}")
+                update.message.reply_text(f"Доступное место на диске: {server[5]}")
+                update.message.reply_text(f"Использование памяти: {server[6]}")
+                update.message.reply_text(f"Данные MPSTAT: {server[7]}")
+                update.message.reply_text("---")
+        else:
+            update.message.reply_text("Сервер с указанным IP не найден в базе данных.")
+        
+        logger.info(f"Информация о сервере по IP {ip_address} успешно отправлена пользователю")
+        
+    except Exception as error:
+        logger.error(f"Ошибка при получении информации о сервере по IP: {error}")
+        update.message.reply_text("Произошла ошибка при получении информации о сервере.")
+    
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+            logger.info("Подключение закрыто")
+
+    return ConversationHandler.END
 
 
 def declineSaving(update: Update, context):
@@ -412,6 +474,14 @@ def main():
             MessageHandler(Filters.text & ~Filters.command, unrecognizedMessageHandler),
             CommandHandler("cancel", cancelHandler),
         ],
+    )
+
+    convHandlerGetServerByIp = ConversationHandler(
+        entry_points=[CommandHandler("get_server", enterIpAddress)],
+        states={
+            "getServerByIp": [MessageHandler(Filters.text & ~Filters.command, getServerByIp)]
+        },
+        fallbacks=[],
     )
 
 
