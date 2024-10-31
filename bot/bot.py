@@ -122,7 +122,8 @@ def checkRemote(update: Update, context):
 
 def saveSystemInfo(update: Update, context):
     logger.info(f"Пользователь {update.message.from_user.username} выбрал сохранить данные о системе")
-
+    connection = None
+    cursor = None
     try:
         # Получаем результаты из контекста
         results = context.user_data.get("results", {})
@@ -131,7 +132,7 @@ def saveSystemInfo(update: Update, context):
             raise ValueError("No system info found in context")
         
         # Подключение к базе данных
-        conn = psycopg2.connect(
+        connection = psycopg2.connect(
             user=DB_USER,
             password=DB_PASSWORD,
             host=DB_HOST,
@@ -139,7 +140,7 @@ def saveSystemInfo(update: Update, context):
             database=DB_DATABASE,
         )
         
-        cursor = conn.cursor()
+        cursor = connection.cursor()
         
         # Цепочка INSERT запросов
         insert_queries = []
@@ -174,7 +175,7 @@ def saveSystemInfo(update: Update, context):
         # Чейним и выполняем одним вызовом
         cursor.executemany(insert_queries)
         
-        conn.commit()
+        connection.commit()
         logger.info(f"{len(results)} записи успешно сохранены в базе данных")
         update.message.reply_text(f"{len(results)} записи успешно сохранены в базе данных")
 
@@ -183,8 +184,11 @@ def saveSystemInfo(update: Update, context):
         update.message.reply_text("Ошибка при сохранении системной информации в базу данных")
     
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+            logger.info("Подключение закрыто")
 
     return ConversationHandler.END
 
