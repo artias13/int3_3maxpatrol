@@ -119,19 +119,14 @@ def checkRemote(update: Update, context):
         update.message.reply_text("Неверный формат строки. \nСледуйте формату: user:password@ip:port")
         return ConversationHandler.END
 
-
-def saveSystemInfo(update: Update, context):
+def save_system_info(update: Update, context):
     logger.info(f"Пользователь {update.message.from_user.username} выбрал сохранить данные о системе")
-    connection = None
-    cursor = None
+    
     try:
-        # Получаем результаты из контекста
-        results = context.user_data.get("results", {})
-        
-        if not results:
-            raise ValueError("No system info found in context")
-        
-        # Подключение к базе данных
+        # Assuming results is already in the context
+        if not isinstance(context.user_data.get("results", []), list):
+            raise ValueError("Invalid results format")
+
         connection = psycopg2.connect(
             user=DB_USER,
             password=DB_PASSWORD,
@@ -141,52 +136,48 @@ def saveSystemInfo(update: Update, context):
         )
         
         cursor = connection.cursor()
-        
-        # Цепочка INSERT запросов
-        insert_queries = []
-        for command, data in results.items():
-            query = f"""
-            INSERT INTO system_info (
-                ip,
-                os,
-                version,
-                architecture,
-                uptime,
-                disk_space,
-                memory_usage,
-                mpstat_data,
-                command_result,
-                execution_time
-            ) VALUES (
-                '{data.get('ip_addresses', [''])[0]}',
-                '{data.get('os', '')}',
-                '{data.get('version', '')}',
-                '{data.get('architecture', '')}',
-                '{data.get('uptime', '')}',
-                '{data.get('disk_space', '')}',
-                '{data.get('memory_usage', '')}',
-                '{data.get('mpstat_data', '')}',
-                '{command}',
-                NOW()
+
+        # Prepare INSERT query with placeholders
+        insert_query = """
+        INSERT INTO system_info (
+            ip,
+            os,
+            architecture,
+            uptime,
+            disk_space,
+            memory_usage,
+            mpstat_data,
+            command_result,
+            execution_time
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """
+
+        # Execute bulk insert
+        cursor.executemany(insert_query, [
+            (
+                item.get('ip_addresses', [''])[0],
+                item.get('os', ''),
+                item.get('architecture', ''),
+                item.get('uptime', ''),
+                item.get('disk_space', ''),
+                item.get('memory_usage', ''),
+                item.get('mpstat_data', ''),
+                command,
+                command
             )
-            """
-            insert_queries.append(query)
+            for command, item in enumerate(context.user_data.get("results", []))
+        ])
 
-        # Чейним и выполняем всеми запросами
-        for query in insert_queries:
-            try:
-                cursor.execute(query)
-            except Exception as e:
-                logger.error(f"Ошибка при выполнении запроса: {query}. Ошибка: {str(e)}")
-                continue
-        
         connection.commit()
-        logger.info(f"{len(results)} записи успешно сохранены в базе данных")
-        update.message.reply_text(f"{len(results)} записи успешно сохранены в базе данных")
+        logger.info(f"{len(context.user_data['results'])} записи успешно сохранены в базе данных")
+        update.message.reply_text(f"{len(context.user_data['results'])} записи успешно сохранены в базе данных")
 
-    except Exception as error:
-        logger.error(f"Ошибка при сохранении системной информации: {error}")
-        update.message.reply_text("Ошибка при сохранении системной информации в базу данных")
+    except psycopg2.Error as e:
+        logger.error(f"Ошибка при подключении к базе данных: {e}")
+        update.message.reply_text("Ошибка при подключении к базе данных")
+    except Exception as e:
+        logger.error(f"Неожиданная ошибка при сохранении системной информации: {e}")
+        update.message.reply_text("Произошла неожиданная ошибка при сохранении системной информации")
     
     finally:
         if cursor:
@@ -196,6 +187,7 @@ def saveSystemInfo(update: Update, context):
             logger.info("Подключение закрыто")
 
     return ConversationHandler.END
+
 
 
 def declineSaving(update: Update, context):
@@ -226,7 +218,7 @@ def gatherHostInfo( user, ip, password, port):
         'free -h',
         'mpstat',
     ]
-    results = {}
+    results = []
     
     try:
         logger.info(f"Выполняется подключение к {ip}")
@@ -252,12 +244,11 @@ def gatherHostInfo( user, ip, password, port):
             return None, "error"
         
         parsed_output = parse_command_output(output, command)
-        results[command] = parsed_output
+        results.append((parsed_output))
 
         
     logger.info(f"Подключение закрывается")
     client.close()
-    print(f"gatherHostInfo: \n {results}")
     return results, "success"
 
 def parse_command_output(output: bytes, command: str) -> Dict[str, Union[str, float]]:
@@ -269,7 +260,6 @@ def parse_command_output(output: bytes, command: str) -> Dict[str, Union[str, fl
     
     elif command == 'lsb_release -a':
         parsed_output['os'] = extract_os_from_lsb(output.decode('utf-8'))
-        parsed_output['version'] = extract_version_from_lsb(output.decode('utf-8'))
 
     elif command == 'uname -a':
         parsed_output['architecture'] = extract_architecture_from_uname(output.decode('utf-8'))
@@ -288,9 +278,11 @@ def parse_command_output(output: bytes, command: str) -> Dict[str, Union[str, fl
 
     return parsed_output
 
-def extract_ip_from_ip_addr(output: str) -> List[str]:
-    """Extract IP addresses from ip addr show output."""
-    ip_addresses = []
+def extract_ip_from_ip_addr(output: str) -> str:
+    """
+    Extract IP addresses from ip addr show output and return them as a comma-separated string.
+    """
+    ip_addresses = set()  # Using a set to avoid duplicates
     
     # Используем регулярное выражение для поиска IP-адресов
     pattern = r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b'
@@ -301,11 +293,14 @@ def extract_ip_from_ip_addr(output: str) -> List[str]:
         if match:
             ip_address = match.group(1)
             logging.info(f"Extracted IP: {ip_address}")
-            ip_addresses.append(ip_address)
+            ip_addresses.add(ip_address)
         else:
             logging.debug(f"No IP found in line: \n{line.strip()}")
-
-    return ip_addresses
+    
+    # Convert set to sorted list and join with commas and spaces
+    ip_string = ", ".join(sorted(ip_addresses))
+    
+    return ip_string
 
 def extract_os_from_lsb(output: str) -> str:
     """Extract OS name from lsb_release output."""
@@ -314,16 +309,6 @@ def extract_os_from_lsb(output: str) -> str:
         if "Description:" in line:
             result = line.split(":")[1].strip()
             print(f"OS {result}")
-            return line.split(":")[1].strip()
-    return "Unknown"
-
-def extract_version_from_lsb(output: str) -> str:
-    """Extract OS version from lsb_release output."""
-    lines = output.split('\n')
-    for line in lines:
-        if "Release:" in line:
-            result = line.split(":")[1].strip()
-            print(f"РЕЛИЗ {result}")
             return line.split(":")[1].strip()
     return "Unknown"
 
@@ -370,20 +355,24 @@ def extract_memory_usage_from_free(output: str) -> str:
 def format_results(results):
     formatted_output = ""
     
-    for command, result in results.items():
-        formatted_output += f"\n{command.upper()}:\n"
-        for key, value in result.items():
+    for result in results:
+        for command, value in result.items():
             if isinstance(value, str):
-                formatted_output += f"  {key}: {value}\n"
+                formatted_output += f"\n{command.upper()}:\n"
+                formatted_output += f"  {value}\n"
             elif isinstance(value, dict):
-                formatted_output += f"  {key}:\n"
+                formatted_output += f"\n{command.upper()}:\n"
                 for sub_key, sub_value in value.items():
-                    formatted_output += f"    {sub_key}: {sub_value}\n"
+                    if isinstance(sub_value, str):
+                        formatted_output += f"  {sub_key}: {sub_value}\n"
+                    elif isinstance(sub_value, list):
+                        formatted_output += f"  {sub_key}:\n"
+                        for item in sub_value:
+                            formatted_output += f"    - {item}\n"
             elif isinstance(value, list):
-                formatted_output += f"  {key}:\n"
+                formatted_output += f"\n{command.upper()}:\n"
                 for item in value:
-                    formatted_output += f"    - {item}\n"
-        formatted_output += "\n"
+                    formatted_output += f"  - {item}\n"
     
     return formatted_output.strip()
 

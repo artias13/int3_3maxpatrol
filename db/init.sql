@@ -7,7 +7,6 @@ CREATE TABLE system_info (
     id SERIAL PRIMARY KEY,
     ip VARCHAR(50),
     os TEXT,
-    version TEXT,
     architecture TEXT,
     uptime TEXT,
     disk_space TEXT,
