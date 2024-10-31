@@ -21,6 +21,10 @@ log_directory = '/var/log/postgresql/' \n\
 log_filename = 'postgresql.log' \n\
 archive_mode = on \n\
 archive_command = 'cp %p /oracle/pg_data/archive/%f' \n\
+max_wal_senders = 10 \n\
+wal_level = replica \n\
+wal_log_hints = on \n\
+log_replication_commands = on \n\
 EOF\n\
 cat <<EOF > /etc/postgresql/pg_hba.conf \n\
 local all ${POSTGRES_USER} peer \n\

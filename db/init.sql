@@ -11,3 +11,6 @@ CREATE TABLE scan_results (
     detected_os VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+INSERT INTO scan_results (ip, os, version, architecture, detected_os, created_at) VALUES ('xyz123@gmail.com'), ('dasd@mail.ru');
+INSERT INTO phone_numbers (phone_number) VALUES ('+7 123 123 33 45'), ('+8-534-555-66-33');
