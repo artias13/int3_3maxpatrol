@@ -32,5 +32,4 @@ host all all 0.0.0.0/0 password \n\
 EOF\n\
 docker-entrypoint.sh $@"]
 
-
 CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf" ]
