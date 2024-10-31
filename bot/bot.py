@@ -121,12 +121,16 @@ def checkRemote(update: Update, context):
 
 def saveSystemInfo(update: Update, context):
     logger.info(f"Пользователь {update.message.from_user.username} выбрал сохранить данные о системе")
-    
+    connection = None
+    cursor = None
     try:
-        # Assuming results is already in the context
-        if not isinstance(context.user_data.get("results", []), list):
-            raise ValueError("Invalid results format")
-
+        # Get results from context
+        results = context.user_data.get("results", [])
+        
+        if not results:
+            raise ValueError("No system info found in context")
+        
+        # Connect to database
         connection = psycopg2.connect(
             user=DB_USER,
             password=DB_PASSWORD,
@@ -136,8 +140,8 @@ def saveSystemInfo(update: Update, context):
         )
         
         cursor = connection.cursor()
-
-        # Prepare INSERT query with placeholders
+        
+        # Prepare insert query
         insert_query = """
         INSERT INTO system_info (
             ip,
@@ -147,37 +151,39 @@ def saveSystemInfo(update: Update, context):
             disk_space,
             memory_usage,
             mpstat_data,
-            command_result,
             execution_time
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
+        
+        # Start transaction
+        cursor.execute("BEGIN;")
+        
+        # Process results and insert them in batches
+        for result in results:
+            for command, data in result.items():
+                values = [
+                    data.get('ip_addresses', ''),
+                    data.get('os', ''),
+                    data.get('version', ''),
+                    data.get('architecture', ''),
+                    data.get('uptime', ''),
+                    data.get('disk_space', ''),
+                    data.get('memory_usage', ''),
+                    datetime.now()
+                ]
+                cursor.execute(insert_query, values)
+        
+        # Commit transaction
+        cursor.execute("COMMIT;")
+        
+        logger.info(f"{len(results)} записи успешно сохранены в базе данных")
+        update.message.reply_text(f"{len(results)} записи успешно сохранены в базе данных")
 
-        # Execute bulk insert
-        cursor.executemany(insert_query, [
-            (
-                item.get('ip_addresses', [''])[0],
-                item.get('os', ''),
-                item.get('architecture', ''),
-                item.get('uptime', ''),
-                item.get('disk_space', ''),
-                item.get('memory_usage', ''),
-                item.get('mpstat_data', ''),
-                command,
-                command
-            )
-            for command, item in enumerate(context.user_data.get("results", []))
-        ])
-
-        connection.commit()
-        logger.info(f"{len(context.user_data['results'])} записи успешно сохранены в базе данных")
-        update.message.reply_text(f"{len(context.user_data['results'])} записи успешно сохранены в базе данных")
-
-    except psycopg2.Error as e:
-        logger.error(f"Ошибка при подключении к базе данных: {e}")
-        update.message.reply_text("Ошибка при подключении к базе данных")
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка при сохранении системной информации: {e}")
-        update.message.reply_text("Произошла неожиданная ошибка при сохранении системной информации")
+    except Exception as error:
+        logger.error(f"Ошибка при сохранении системной информации: {error}")
+        update.message.reply_text("Ошибка при сохранении системной информации в базу данных")
+        # Rollback transaction if there's an error
+        cursor.execute("ROLLBACK;")
     
     finally:
         if cursor:
@@ -187,7 +193,6 @@ def saveSystemInfo(update: Update, context):
             logger.info("Подключение закрыто")
 
     return ConversationHandler.END
-
 
 
 def declineSaving(update: Update, context):

@@ -12,6 +12,5 @@ CREATE TABLE system_info (
     disk_space TEXT,
     memory_usage TEXT,
     mpstat_data TEXT,
-    command_result TEXT,
     execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
