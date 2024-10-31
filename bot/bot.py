@@ -490,6 +490,7 @@ def main():
     dp.add_handler(CommandHandler("help", helpCommand))
 
     dp.add_handler(convHandlerParseConnection)
+    dp.add_handler(convHandlerGetServerByIp)
 
 
     # Регистрируем обработчик текстовых сообщений
