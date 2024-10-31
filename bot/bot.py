@@ -151,8 +151,7 @@ def saveSystemInfo(update: Update, context):
             disk_space,
             memory_usage,
             mpstat_data,
-            execution_time
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         
         # Start transaction
@@ -161,6 +160,7 @@ def saveSystemInfo(update: Update, context):
         # Process results and insert them in one row
         values = []
         for result in results:
+            
             values.extend([
                 result.get('ip_addresses', ''),
                 result.get('os', ''),
@@ -169,8 +169,9 @@ def saveSystemInfo(update: Update, context):
                 result.get('disk_space', ''),
                 result.get('memory_usage', ''),
                 result.get('mpstat_data', ''),
-                datetime.now()
             ])
+        # Remove empty strings from the list
+        values = list(filter(None, values))
         
         # Execute insert query with all values
         cursor.execute(insert_query, values)
