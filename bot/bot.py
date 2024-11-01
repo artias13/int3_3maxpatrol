@@ -179,8 +179,8 @@ def saveSystemInfo(update: Update, context):
         # Commit transaction
         cursor.execute("COMMIT;")
         
-        logger.info(f"{len(results)} записи успешно сохранены в базе данных")
-        update.message.reply_text(f"{len(results)} записи успешно сохранены в базу данных")
+        logger.info(f"Сервер с адресами: \n{values[0]} \nуспешно добавлен в базу данных")
+        update.message.reply_text(f"Сервер с адресами: \n{values[0]} \nуспешно добавлен в базу данных")
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении системной информации: {error}")
@@ -202,8 +202,6 @@ def enterIpAddress(update: Update, context):
     update.message.reply_text("Введите IP-адрес искомого сервера")
     return "getServerByIp"
 
-import re
-from psycopg2 import connect
 
 def getServerByIp(update: Update, context):
     """Get server information by IP address"""
@@ -232,10 +230,13 @@ def getServerByIp(update: Update, context):
             
             query = """
             SELECT * FROM system_info
-            WHERE ip = %s;
+            WHERE ip LIKE %s;
             """
+
+            # Prepare the LIKE pattern
+            ip_pattern = f"%{ip_address}%"
             
-            cursor.execute(query, (ip_address,))
+            cursor.execute(query, (ip_pattern,))
             
             servers = cursor.fetchall()
             
