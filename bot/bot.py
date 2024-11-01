@@ -242,7 +242,7 @@ def getServerByIp(update: Update, context):
             
             if servers:
                 for server in servers:
-                    update.message.reply_text(f"Искомый сервер:")
+                    update.message.reply_text(f"Искомый сервер: {server[0]}")
                     update.message.reply_text(f"Адрес: {server[1]}")
                     update.message.reply_text(f"Операционная система: {server[2]}")
                     update.message.reply_text(f"Архитектура: {server[3]}")
