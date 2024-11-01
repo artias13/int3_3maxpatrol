@@ -202,63 +202,74 @@ def enterIpAddress(update: Update, context):
     update.message.reply_text("Введите IP-адрес искомого сервера")
     return "getServerByIp"
 
+import re
+from psycopg2 import connect
+
 def getServerByIp(update: Update, context):
     """Get server information by IP address"""
     logger.info(f"Пользователь {update.message.from_user.username} запросил информацию о сервере по IP")
-    connection = None
-    cursor = None
-    try:
-        # Extract IP address from the message
-        ip_address = update.message.text.split('@')[2].split(':')[0]
-        
-        # Prepare the query
-        query = """
-        SELECT * FROM system_info
-        WHERE ip = %s;
-        """
-        
-        # Execute the query
-        connection = psycopg2.connect(
-            user=DB_USER,
-            password=DB_PASSWORD,
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_DATABASE,
-        )
-        cursor = connection.cursor()
-        cursor.execute(query, (ip_address,))
-        
-        # Fetch all matching records
-        servers = cursor.fetchall()
-        
-        if servers:
-            # Send the results back to the user
-            for server in servers:
-                update.message.reply_text(f"Сервер: {server[1]} ({server[0]})")
-                update.message.reply_text(f"Адрес: {server[0]}")
-                update.message.reply_text(f"Операционная система: {server[2]}")
-                update.message.reply_text(f"Архитектура: {server[3]}")
-                update.message.reply_text(f"Время работы: {server[4]}")
-                update.message.reply_text(f"Доступное место на диске: {server[5]}")
-                update.message.reply_text(f"Использование памяти: {server[6]}")
-                update.message.reply_text(f"Данные MPSTAT: {server[7]}")
-                update.message.reply_text("---")
-        else:
-            update.message.reply_text("Сервер с указанным IP не найден в базе данных.")
-        
-        logger.info(f"Информация о сервере по IP {ip_address} успешно отправлена пользователю")
-        
-    except Exception as error:
-        logger.error(f"Ошибка при получении информации о сервере по IP: {error}")
-        update.message.reply_text("Произошла ошибка при получении информации о сервере.")
     
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-            logger.info("Подключение закрыто")
-
+    # Regex pattern for IPv4 addresses
+    ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+    
+    # Extract IP address from the message
+    ip_address = re.search(ip_pattern, update.message.text)
+    
+    if ip_address:
+        ip_address = ip_address.group()
+        
+        logger.info(f"Извлечен IP адрес: {ip_address}")
+        
+        try:
+            connection = connect(
+                user=DB_USER,
+                password=DB_PASSWORD,
+                host=DB_HOST,
+                port=DB_PORT,
+                database=DB_DATABASE,
+            )
+            cursor = connection.cursor()
+            
+            query = """
+            SELECT * FROM system_info
+            WHERE ip = %s;
+            """
+            
+            cursor.execute(query, (ip_address,))
+            
+            servers = cursor.fetchall()
+            
+            if servers:
+                for server in servers:
+                    update.message.reply_text(f"Сервер: {server[1]} ({server[0]})")
+                    update.message.reply_text(f"Адрес: {server[0]}")
+                    update.message.reply_text(f"Операционная система: {server[2]}")
+                    update.message.reply_text(f"Архитектура: {server[3]}")
+                    update.message.reply_text(f"Время работы: {server[4]}")
+                    update.message.reply_text(f"Доступное место на диске: {server[5]}")
+                    update.message.reply_text(f"Использование памяти: {server[6]}")
+                    update.message.reply_text(f"Данные MPSTAT: {server[7]}")
+                    update.message.reply_text("---")
+            else:
+                update.message.reply_text("Сервер с указанным IP не найден в базе данных.")
+            
+            logger.info(f"Информация о сервере по IP {ip_address} успешно отправлена пользователю")
+        
+        except Exception as error:
+            logger.error(f"Ошибка при получении информации о сервере по IP: {error}")
+            update.message.reply_text("Произошла ошибка при получении информации о сервере.")
+        
+        finally:
+            if 'cursor' in locals():
+                cursor.close()
+            if 'connection' in locals():
+                connection.close()
+                logger.info("Подключение закрыто")
+    
+    else:
+        update.message.reply_text("Неверный формат IP адреса. Пожалуйста, введите корректный IP адрес.")
+        logger.warning(f"Пользователь ввел некорректный IP адрес: {update.message.text}")
+    
     return ConversationHandler.END
 
 
