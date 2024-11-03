@@ -55,6 +55,7 @@ def helpCommand(update: Update, context):
     )
 
 def parseConnectionString(connection_string: str) -> Tuple[str, str, str, int]:
+    """Извлекает IP из строки."""
     pattern = r'^(?P<user>\w+):(?P<password>\w+)@(?P<ip>\d+\.\d+\.\d+\.\d+):(?P<port>\d+)$'
     match = re.match(pattern, connection_string)
     
@@ -76,7 +77,7 @@ def enterConnectionString(update: Update, context):
 
 
 def checkRemote(update: Update, context):
-
+    """Функция сбора информации об удаленном сервере."""
     logger.info(
         f"Пользователь {update.message.from_user.username} ввел:\n{update.message.text}"
     )
@@ -87,13 +88,14 @@ def checkRemote(update: Update, context):
 
     # Если все ок
     if user and password and ip and port:
-        # Process the connection details here
+        
         logger.info(f"Получены данные подключения: \nUser={user}, IP={ip}, Port={port}")
         update.message.reply_text(f"Получены данные подключения: \nUser={user}, IP={ip}, Port={port}")
 
+        # Вызываем функцию подключения к хосту
         results, return_type = gatherHostInfo(user=user, ip=ip, password=password, port=port)
 
-        print(results)
+        # Обработка случаев
         if results == None:
             update.message.reply_text(f"Результаты отсутствуют")
             return ConversationHandler.END
@@ -120,17 +122,18 @@ def checkRemote(update: Update, context):
         return ConversationHandler.END
 
 def saveSystemInfo(update: Update, context):
+    """Функция сохранения информации в PSQL."""
     logger.info(f"Пользователь {update.message.from_user.username} выбрал сохранить данные о системе")
     connection = None
     cursor = None
     try:
-        # Get results from context
+        # Получаем результаты из контекста
         results = context.user_data.get("results", [])
         
         if not results:
             raise ValueError("No system info found in context")
         
-        # Connect to database
+        # Подключаемся к базе
         connection = psycopg2.connect(
             user=DB_USER,
             password=DB_PASSWORD,
@@ -141,7 +144,7 @@ def saveSystemInfo(update: Update, context):
         
         cursor = connection.cursor()
         
-        # Prepare insert query
+        # Готовим запрос
         insert_query = """
         INSERT INTO system_info (
             ip,
@@ -154,13 +157,13 @@ def saveSystemInfo(update: Update, context):
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         
-        # Start transaction
+        # Открываем транзакцию
         cursor.execute("BEGIN;")
         
-        # Process results and insert them in one row
+        # Создаем список значений
         values = []
         for result in results:
-            
+            # Заполняем список результатами из контекста
             values.extend([
                 result.get('ip_addresses', ''),
                 result.get('os', ''),
@@ -170,13 +173,13 @@ def saveSystemInfo(update: Update, context):
                 result.get('memory_usage', ''),
                 result.get('mpstat_data', ''),
             ])
-        # Remove empty strings from the list
+        # Убираем пустоты из списка
         values = list(filter(None, values))
         
-        # Execute insert query with all values
+        # Делаем insert 
         cursor.execute(insert_query, values)
         
-        # Commit transaction
+        # Комиттим транзакцию
         cursor.execute("COMMIT;")
         
         logger.info(f"Сервер с адресами: \n{values[0]} \nуспешно добавлен в базу данных")
@@ -185,7 +188,7 @@ def saveSystemInfo(update: Update, context):
     except Exception as error:
         logger.error(f"Ошибка при сохранении системной информации: {error}")
         update.message.reply_text("Ошибка при сохранении системной информации в базу данных")
-        # Rollback transaction if there's an error
+        # Откат транзакции если ошибка
         cursor.execute("ROLLBACK;")
     
     finally:
@@ -204,13 +207,13 @@ def enterIpAddress(update: Update, context):
 
 
 def getServerByIp(update: Update, context):
-    """Get server information by IP address"""
+    """Получаем информацию о сервере по IP из бд"""
     logger.info(f"Пользователь {update.message.from_user.username} запросил информацию о сервере по IP")
     
-    # Regex pattern for IPv4 addresses
+    # Regex для IPV4
     ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
     
-    # Extract IP address from the message
+    # Извлекаем IP из сообщения
     ip_address = re.search(ip_pattern, update.message.text)
     
     if ip_address:
@@ -233,7 +236,7 @@ def getServerByIp(update: Update, context):
             WHERE ip LIKE %s;
             """
 
-            # Prepare the LIKE pattern
+            # Готовим паттерн для like exp
             ip_pattern = f"%{ip_address}%"
             
             cursor.execute(query, (ip_pattern,))
@@ -336,7 +339,7 @@ def gatherHostInfo( user, ip, password, port):
     return results, "success"
 
 def parse_command_output(output: bytes, command: str) -> Dict[str, Union[str, float]]:
-    """Parse command output and extract relevant data."""
+    """Обработка вывода команд и извлечение данных."""
     parsed_output = {}
 
     if command == 'ip addr show':
@@ -364,9 +367,9 @@ def parse_command_output(output: bytes, command: str) -> Dict[str, Union[str, fl
 
 def extract_ip_from_ip_addr(output: str) -> str:
     """
-    Extract IP addresses from ip addr show output and return them as a comma-separated string.
+    Извлекаем IP из вывода команды и возвращаем как строку значений соединенных ,
     """
-    ip_addresses = set()  # Using a set to avoid duplicates
+    ip_addresses = set()  # Чтобы избежать повторов используем set
     
     # Используем регулярное выражение для поиска IP-адресов
     pattern = r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b'
@@ -381,13 +384,13 @@ def extract_ip_from_ip_addr(output: str) -> str:
         else:
             logging.debug(f"No IP found in line: \n{line.strip()}")
     
-    # Convert set to sorted list and join with commas and spaces
+    # Преобразуем set в список
     ip_string = ", ".join(sorted(ip_addresses))
     
     return ip_string
 
 def extract_os_from_lsb(output: str) -> str:
-    """Extract OS name from lsb_release output."""
+    """Извлекаем имя OS из вывода lsb_release."""
     lines = output.split('\n')
     for line in lines:
         if "Description:" in line:
@@ -397,7 +400,7 @@ def extract_os_from_lsb(output: str) -> str:
     return "Unknown"
 
 def extract_architecture_from_uname(output: str) -> str:
-    """Extract architecture from uname output."""
+    """Извлекаем архитектуру из вывода uname."""
     lines = output.split('\n')
     for line in lines:
         if "m" in line.lower():
@@ -406,7 +409,7 @@ def extract_architecture_from_uname(output: str) -> str:
     return "Unknown"
 
 def extract_uptime_from_output(output: str) -> str:
-    """Extract uptime from command output."""
+    """Извлекаем uptime."""
     lines = output.split('\n')
     for line in lines:
         if "up" in line.lower():
@@ -415,7 +418,7 @@ def extract_uptime_from_output(output: str) -> str:
     return "Unknown"
 
 def extract_disk_space_from_df(output: str) -> str:
-    """Extract disk space information from df command."""
+    """Извлекаем инфу о диске из вывода df."""
     lines = output.split('\n')
     total_line = None
     for line in lines:
@@ -426,7 +429,7 @@ def extract_disk_space_from_df(output: str) -> str:
     return total_line if total_line else "Unknown"
 
 def extract_memory_usage_from_free(output: str) -> str:
-    """Extract memory usage information from free command."""
+    """Извлекаем инфу о RAM из вывода free."""
     lines = output.split('\n')
     mem_line = None
     for line in lines:
@@ -437,6 +440,7 @@ def extract_memory_usage_from_free(output: str) -> str:
     return mem_line if mem_line else "Unknown"
 
 def format_results(results):
+    """Форматируем результат для вывода в тг чате."""
     formatted_output = ""
     
     for result in results:
